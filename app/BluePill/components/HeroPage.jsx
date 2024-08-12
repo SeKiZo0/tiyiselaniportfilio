@@ -5,8 +5,8 @@ import { interpolate } from 'flubber';
 
 function HeroPage() {
   return (
-    <div>
-      <svg id="visual" viewBox="0 0 1920 1080" width="1920" height="1080" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" version="1.1">
+    <div className="h-screen w-full object-contain overflow-x-hidden -z-10">
+      <svg id="visual" viewBox="0 0 1920 1080" className='h-full w-full object-fill' preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" version="1.1">
         <SVGMorph paths={[shape1, shape1_morphed, shape1]} fill="#2424c7" />
         <SVGMorph paths={[shape2, shape2_morphed, shape2]} fill="#004fdc" />
         <SVGMorph paths={[shape3, shape3_morphed, shape3]} fill="#0071ea" />
