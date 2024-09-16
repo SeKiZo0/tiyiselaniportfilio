@@ -34,21 +34,21 @@ function SVGMorph({ paths, fill }) {
     mixer: (a,b) => interpolate(a, b)
   })
 
-  useEffect(() => {
-    console.log(indexOfPath)
-    animate(progress, indexOfPath, {
-      duration: 10,
-      delay: 0,
-      onComplete: () => {
-        if (indexOfPath === paths.length - 1) {
-          setIndexOfPath(0)
-          progress.set(0)
-        } else {
-          setIndexOfPath(indexOfPath + 1)
-        }
-      }
-    })
-  }, [indexOfPath])
+  // useEffect(() => {
+  //   console.log(indexOfPath)
+  //   animate(progress, indexOfPath, {
+  //     duration: 100,
+  //     delay: 0,
+  //     onComplete: () => {
+  //       if (indexOfPath === paths.length - 1) {
+  //         setIndexOfPath(0)
+  //         progress.set(0)
+  //       } else {
+  //         setIndexOfPath(indexOfPath + 1)
+  //       }
+  //     }
+  //   })
+  // }, [indexOfPath])
 
   return (
     <motion.path d={path} fill={fill} />
