@@ -1,5 +1,5 @@
-import Image from "next/image";
-import Lenis from 'lenis'
+// import Image from "next/image";
+// import Lenis from 'lenis'
 
 export default function Home() {
   return (
