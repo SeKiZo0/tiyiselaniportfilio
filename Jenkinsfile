@@ -1,7 +1,7 @@
 pipeline {
-    agent {
-        label 'docker-agent'  // Use the Docker VM agent
-    }
+//     agent {
+//         label 'docker-agent'  // Use the Docker VM agent
+//     }
 
     environment {
         GITHUB_REGISTRY = 'ghcr.io'
