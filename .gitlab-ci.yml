@@ -24,15 +24,11 @@ build:
     # Fix audit issues and update browserslist
     - npm audit fix --force || true
     - npx update-browserslist-db@latest || true
-    # In your GitLab CI script, add this line to see which user is running:
-    - whoami
   artifacts:
     paths:
       - .next/          # Next.js build output
       - public/         # Static assets
       - package*.json   # Package files for deployment
-      # Removed: node_modules/ (too large, use cache instead)
-      # Removed: out/ (not generated without next export)
     exclude:
       - .next/cache/**/*  # Exclude cache from artifacts
     expire_in: 1 hour
@@ -41,8 +37,7 @@ build:
     - main
     - develop
 
-# Deploy stage
-# Deploy stage (for root user)
+# Deploy to production
 deploy:
   stage: deploy
   tags:
@@ -51,31 +46,37 @@ deploy:
   dependencies:
     - build
   script:
+    # Check current user (for debugging)
+    - whoami
+
     # Create deployment directory
-    - mkdir -p ${DEPLOY_PATH}
+    - sudo mkdir -p ${DEPLOY_PATH}
 
     # Stop existing application (if using PM2)
-    - pm2 stop nextjs-app || true
+    - sudo pm2 stop nextjs-app || true
 
-    # Copy files to deployment directory
-    - cp -r .next ${DEPLOY_PATH}/
-    - cp -r public ${DEPLOY_PATH}/ || true
-    - cp package*.json ${DEPLOY_PATH}/
+    # Copy files to deployment directory (with sudo)
+    - sudo cp -r .next ${DEPLOY_PATH}/
+    - sudo cp -r public ${DEPLOY_PATH}/ || true
+    - sudo cp package*.json ${DEPLOY_PATH}/
+
+    # Set proper permissions before npm install
+    - sudo chown -R gitlab-runner:gitlab-runner ${DEPLOY_PATH}
 
     # Navigate to deployment directory and install dependencies
     - cd ${DEPLOY_PATH}
     - npm ci --only=production
 
     # Set proper permissions for web server
-    - chown -R www-data:www-data ${DEPLOY_PATH}
+    - sudo chown -R www-data:www-data ${DEPLOY_PATH}
 
     # Install PM2 if not installed
-    - npm install -g pm2 || true
+    - sudo npm install -g pm2 || true
 
-    # Start/restart the application
-    - pm2 start npm --name "nextjs-app" -- start || pm2 restart nextjs-app
-    - pm2 save
-    - pm2 startup || true
+    # Start/restart the application as www-data user
+    - sudo -u www-data pm2 start npm --name "nextjs-app" -- start || sudo -u www-data pm2 restart nextjs-app
+    - sudo -u www-data pm2 save
+    - sudo pm2 startup || true
 
   only:
     - master
@@ -83,3 +84,49 @@ deploy:
   environment:
     name: production
     url: http://10.0.0.201:3000
+
+# Deploy to staging
+deploy_staging:
+  stage: deploy
+  tags:
+    - deploy
+    - nextjs
+  dependencies:
+    - build
+  script:
+    # Check current user (for debugging)
+    - whoami
+
+    # Create staging directory
+    - sudo mkdir -p /var/www/nextjs-app-staging
+
+    # Stop existing staging application
+    - sudo pm2 stop nextjs-app-staging || true
+
+    # Copy files to staging directory
+    - sudo cp -r .next /var/www/nextjs-app-staging/
+    - sudo cp -r public /var/www/nextjs-app-staging/ || true
+    - sudo cp package*.json /var/www/nextjs-app-staging/
+
+    # Set proper permissions before npm install
+    - sudo chown -R gitlab-runner:gitlab-runner /var/www/nextjs-app-staging
+
+    # Navigate to staging directory and install dependencies
+    - cd /var/www/nextjs-app-staging
+    - npm ci --only=production
+
+    # Set proper permissions for web server
+    - sudo chown -R www-data:www-data /var/www/nextjs-app-staging
+
+    # Install PM2 if not installed
+    - sudo npm install -g pm2 || true
+
+    # Start/restart the staging application as www-data user
+    - sudo -u www-data pm2 start npm --name "nextjs-app-staging" -- start || sudo -u www-data pm2 restart nextjs-app-staging
+    - sudo -u www-data pm2 save
+
+  only:
+    - develop
+  environment:
+    name: staging
+    url: http://10.0.0.201:3001
