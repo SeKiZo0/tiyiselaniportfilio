@@ -45,36 +45,36 @@ deploy:
   tags:
     - deploy
     - nextjs
-  # Use shell executor since we need sudo access
+  # Use shell executor since we need access
   # Remove image directive for shell executor
   dependencies:
     - build
   script:
     # Create deployment directory
-    - sudo mkdir -p ${DEPLOY_PATH}
+    - mkdir -p ${DEPLOY_PATH}
 
     # Stop existing application (if using PM2)
-    - sudo pm2 stop nextjs-app || true
+    - pm2 stop nextjs-app || true
 
     # Copy files to deployment directory
-    - sudo cp -r .next ${DEPLOY_PATH}/
-    - sudo cp -r public ${DEPLOY_PATH}/ || true
-    - sudo cp package*.json ${DEPLOY_PATH}/
+    - cp -r .next ${DEPLOY_PATH}/
+    - cp -r public ${DEPLOY_PATH}/ || true
+    - cp package*.json ${DEPLOY_PATH}/
 
     # Navigate to deployment directory and install dependencies
     - cd ${DEPLOY_PATH}
-    - sudo npm ci --only=production
+    - npm ci --only=production
 
     # Set proper permissions
-    - sudo chown -R www-data:www-data ${DEPLOY_PATH}
+    - chown -R www-data:www-data ${DEPLOY_PATH}
 
     # Install PM2 if not installed
-    - sudo npm install -g pm2 || true
+    - npm install -g pm2 || true
 
     # Start/restart the application
-    - sudo pm2 start npm --name "nextjs-app" -- start || sudo pm2 restart nextjs-app
-    - sudo pm2 save
-    - sudo pm2 startup || true
+    - pm2 start npm --name "nextjs-app" -- start || pm2 restart nextjs-app
+    - pm2 save
+    - pm2 startup || true
 
   only:
     - master
@@ -92,29 +92,29 @@ deploy_staging:
     - build
   script:
     # Create staging directory
-    - sudo mkdir -p /var/www/nextjs-app-staging
+    - mkdir -p /var/www/nextjs-app-staging
 
     # Stop existing staging application
-    - sudo pm2 stop nextjs-app-staging || true
+    - pm2 stop nextjs-app-staging || true
 
     # Copy files to staging directory
-    - sudo cp -r .next /var/www/nextjs-app-staging/
-    - sudo cp -r public /var/www/nextjs-app-staging/ || true
-    - sudo cp package*.json /var/www/nextjs-app-staging/
+    - cp -r .next /var/www/nextjs-app-staging/
+    - cp -r public /var/www/nextjs-app-staging/ || true
+    - cp package*.json /var/www/nextjs-app-staging/
 
     # Navigate to staging directory and install dependencies
     - cd /var/www/nextjs-app-staging
-    - sudo npm ci --only=production
+    - npm ci --only=production
 
     # Set proper permissions
-    - sudo chown -R www-data:www-data /var/www/nextjs-app-staging
+    - chown -R www-data:www-data /var/www/nextjs-app-staging
 
     # Install PM2 if not installed
-    - sudo npm install -g pm2 || true
+    - npm install -g pm2 || true
 
     # Start/restart the staging application
-    - sudo pm2 start npm --name "nextjs-app-staging" -- start || sudo pm2 restart nextjs-app-staging
-    - sudo pm2 save
+    - pm2 start npm --name "nextjs-app-staging" -- start || pm2 restart nextjs-app-staging
+    - pm2 save
 
   only:
     - develop
