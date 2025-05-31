@@ -29,6 +29,7 @@ build:
       - package*.json
     expire_in: 1 hour
   only:
+    - master  # ← Added master branch
     - main
     - develop
 
@@ -69,6 +70,7 @@ deploy:
     - sudo pm2 startup || true
 
   only:
+    - master  # ← Added master branch
     - main
   environment:
     name: production
@@ -89,7 +91,7 @@ deploy_staging:
     - sudo cp package*.json /var/www/nextjs-app-staging/
     - sudo chown -R www-data:www-data /var/www/nextjs-app-staging
     - cd /var/www/nextjs-app-staging
-    - sudo pm2 start npm --name "nextjs-app-staging" -- start || sudo pm2 restart nextjs-app-staging
+    - sudo pm2 start npm --name "nextjs-app" -- start || sudo pm2 restart nextjs-app-staging
   only:
     - develop
   environment:
