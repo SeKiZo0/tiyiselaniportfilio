@@ -20,7 +20,7 @@ build:
   script:
     - npm ci
     - npm run build
-    - npm run export # If using static export
+    # Removed npm run export since it's not needed for SSR
   artifacts:
     paths:
       - out/ # For static export
