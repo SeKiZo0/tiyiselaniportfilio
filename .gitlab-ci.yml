@@ -52,30 +52,44 @@ deploy:
     # Create deployment directory
     - sudo mkdir -p ${DEPLOY_PATH}
 
-    # Stop existing application (if using PM2)
+    # Stop existing application (using root PM2)
     - sudo pm2 stop nextjs-app || true
 
-    # Copy files to deployment directory (with sudo)
+    # Copy files to deployment directory
     - sudo cp -r .next ${DEPLOY_PATH}/
     - sudo cp -r public ${DEPLOY_PATH}/ || true
     - sudo cp package*.json ${DEPLOY_PATH}/
 
-    # Set proper permissions before npm install
+    # Set proper permissions for gitlab-runner to install deps
     - sudo chown -R gitlab-runner:gitlab-runner ${DEPLOY_PATH}
 
     # Navigate to deployment directory and install dependencies
     - cd ${DEPLOY_PATH}
-    - npm ci --only=production
+    - npm ci --omit=dev
 
-    # Set proper permissions for web server
+    # Create a simple ecosystem file for PM2
+    - |
+      cat > ecosystem.config.js << EOF
+      module.exports = {
+        apps: [{
+          name: 'nextjs-app',
+          script: 'npm',
+          args: 'start',
+          cwd: '${DEPLOY_PATH}',
+          env: {
+            NODE_ENV: 'production',
+            PORT: 3000
+          }
+        }]
+      }
+      EOF
+
+    # Set proper permissions back to www-data
     - sudo chown -R www-data:www-data ${DEPLOY_PATH}
 
-    # Install PM2 if not installed
-    - sudo npm install -g pm2 || true
-
-    # Start/restart the application as www-data user
-    - sudo -u www-data pm2 start npm --name "nextjs-app" -- start || sudo -u www-data pm2 restart nextjs-app
-    - sudo -u www-data pm2 save
+    # Start/restart the application using root PM2 (simpler approach)
+    - sudo pm2 start ecosystem.config.js || sudo pm2 restart nextjs-app
+    - sudo pm2 save
     - sudo pm2 startup || true
 
   only:
@@ -108,22 +122,36 @@ deploy_staging:
     - sudo cp -r public /var/www/nextjs-app-staging/ || true
     - sudo cp package*.json /var/www/nextjs-app-staging/
 
-    # Set proper permissions before npm install
+    # Set proper permissions for gitlab-runner to install deps
     - sudo chown -R gitlab-runner:gitlab-runner /var/www/nextjs-app-staging
 
     # Navigate to staging directory and install dependencies
     - cd /var/www/nextjs-app-staging
-    - npm ci --only=production
+    - npm ci --omit=dev
 
-    # Set proper permissions for web server
+    # Create ecosystem file for staging
+    - |
+      cat > ecosystem.config.js << EOF
+      module.exports = {
+        apps: [{
+          name: 'nextjs-app-staging',
+          script: 'npm',
+          args: 'start',
+          cwd: '/var/www/nextjs-app-staging',
+          env: {
+            NODE_ENV: 'production',
+            PORT: 3001
+          }
+        }]
+      }
+      EOF
+
+    # Set proper permissions back to www-data
     - sudo chown -R www-data:www-data /var/www/nextjs-app-staging
 
-    # Install PM2 if not installed
-    - sudo npm install -g pm2 || true
-
-    # Start/restart the staging application as www-data user
-    - sudo -u www-data pm2 start npm --name "nextjs-app-staging" -- start || sudo -u www-data pm2 restart nextjs-app-staging
-    - sudo -u www-data pm2 save
+    # Start/restart the staging application
+    - sudo pm2 start ecosystem.config.js || sudo pm2 restart nextjs-app-staging
+    - sudo pm2 save
 
   only:
     - develop
