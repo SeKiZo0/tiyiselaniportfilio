@@ -24,6 +24,8 @@ build:
     # Fix audit issues and update browserslist
     - npm audit fix --force || true
     - npx update-browserslist-db@latest || true
+    # In your GitLab CI script, add this line to see which user is running:
+    - whoami
   artifacts:
     paths:
       - .next/          # Next.js build output
@@ -40,13 +42,12 @@ build:
     - develop
 
 # Deploy stage
+# Deploy stage (for root user)
 deploy:
   stage: deploy
   tags:
     - deploy
     - nextjs
-  # Use shell executor since we need access
-  # Remove image directive for shell executor
   dependencies:
     - build
   script:
@@ -65,7 +66,7 @@ deploy:
     - cd ${DEPLOY_PATH}
     - npm ci --only=production
 
-    # Set proper permissions
+    # Set proper permissions for web server
     - chown -R www-data:www-data ${DEPLOY_PATH}
 
     # Install PM2 if not installed
@@ -82,42 +83,3 @@ deploy:
   environment:
     name: production
     url: http://10.0.0.201:3000
-
-# Deploy to staging
-deploy_staging:
-  stage: deploy
-  tags:
-    - deploy
-  dependencies:
-    - build
-  script:
-    # Create staging directory
-    - mkdir -p /var/www/nextjs-app-staging
-
-    # Stop existing staging application
-    - pm2 stop nextjs-app-staging || true
-
-    # Copy files to staging directory
-    - cp -r .next /var/www/nextjs-app-staging/
-    - cp -r public /var/www/nextjs-app-staging/ || true
-    - cp package*.json /var/www/nextjs-app-staging/
-
-    # Navigate to staging directory and install dependencies
-    - cd /var/www/nextjs-app-staging
-    - npm ci --only=production
-
-    # Set proper permissions
-    - chown -R www-data:www-data /var/www/nextjs-app-staging
-
-    # Install PM2 if not installed
-    - npm install -g pm2 || true
-
-    # Start/restart the staging application
-    - pm2 start npm --name "nextjs-app-staging" -- start || pm2 restart nextjs-app-staging
-    - pm2 save
-
-  only:
-    - develop
-  environment:
-    name: staging
-    url: http://10.0.0.201:3001
