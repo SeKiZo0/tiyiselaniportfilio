@@ -3,40 +3,91 @@ stages:
   - deploy
 
 variables:
-  DOCKER_IMAGE_NAME: your-nextjs-app
-  DOCKER_TAG: latest
-  CONTAINER_NAME: nextjs-app
+  NODE_VERSION: "18"
+  DEPLOY_PATH: "/var/www/nextjs-app"
 
+# Build stage
 build:
   stage: build
-  image: docker:20.10.16
-  services:
-    - docker:20.10.16-dind
-  before_script:
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+  image: node:${NODE_VERSION}-alpine
+  cache:
+    paths:
+      - node_modules/
+      - .next/cache/
   script:
-    - docker build -t $CI_REGISTRY_IMAGE:$DOCKER_TAG .
-    - docker push $CI_REGISTRY_IMAGE:$DOCKER_TAG
+    - npm ci
+    - npm run build
+    - npm run export # If using static export
+  artifacts:
+    paths:
+      - out/ # For static export
+      - .next/ # For server-side rendering
+      - node_modules/
+      - package*.json
+    expire_in: 1 hour
   only:
     - main
+    - develop
 
+# Deploy stage
 deploy:
   stage: deploy
-  image: alpine:latest
-  before_script:
-    - apk add --no-cache openssh-client
-    - eval $(ssh-agent -s)
-    - echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add -
-    - mkdir -p ~/.ssh
-    - chmod 700 ~/.ssh
-    - ssh-keyscan -H $SERVER_HOST >> ~/.ssh/known_hosts
+  tags:
+    - deploy
+  dependencies:
+    - build
   script:
-    - ssh $SERVER_USER@$SERVER_HOST "
-      docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY &&
-      docker pull $CI_REGISTRY_IMAGE:$DOCKER_TAG &&
-      docker stop $CONTAINER_NAME || true &&
-      docker rm $CONTAINER_NAME || true &&
-      docker run -d --name $CONTAINER_NAME -p 3000:3000 --restart unless-stopped $CI_REGISTRY_IMAGE:$DOCKER_TAG
-      "
+    # Create deployment directory
+    - sudo mkdir -p ${DEPLOY_PATH}
+
+    # Stop existing application (if using PM2)
+    - sudo pm2 stop nextjs-app || true
+
+    # Copy files to deployment directory
+    - sudo cp -r .next ${DEPLOY_PATH}/
+    - sudo cp -r node_modules ${DEPLOY_PATH}/
+    - sudo cp -r public ${DEPLOY_PATH}/ || true
+    - sudo cp package*.json ${DEPLOY_PATH}/
+
+    # If using static export, copy out/ directory instead
+    # - sudo cp -r out/* ${DEPLOY_PATH}/
+
+    # Set proper permissions
+    - sudo chown -R www-data:www-data ${DEPLOY_PATH}
+
+    # Install PM2 if not installed
+    - sudo npm install -g pm2 || true
+
+    # Start/restart the application
+    - cd ${DEPLOY_PATH}
+    - sudo pm2 start npm --name "nextjs-app" -- start || sudo pm2 restart nextjs-app
+    - sudo pm2 save
+    - sudo pm2 startup || true
+
   only:
     - main
+  environment:
+    name: production
+    url: http://10.0.0.201:3000
+
+# Optional: Deploy to staging
+deploy_staging:
+  stage: deploy
+  tags:
+    - deploy
+  dependencies:
+    - build
+  script:
+    - sudo mkdir -p /var/www/nextjs-app-staging
+    - sudo cp -r .next /var/www/nextjs-app-staging/
+    - sudo cp -r node_modules /var/www/nextjs-app-staging/
+    - sudo cp -r public /var/www/nextjs-app-staging/ || true
+    - sudo cp package*.json /var/www/nextjs-app-staging/
+    - sudo chown -R www-data:www-data /var/www/nextjs-app-staging
+    - cd /var/www/nextjs-app-staging
+    - sudo pm2 start npm --name "nextjs-app-staging" -- start || sudo pm2 restart nextjs-app-staging
+  only:
+    - develop
+  environment:
+    name: staging
+    url: http://10.0.0.201:3001
